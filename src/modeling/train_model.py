@@ -1,14 +1,18 @@
+from pathlib import Path
+import joblib
+
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 
 
-def train_model(df):
+BASE_DIR = Path(__file__).resolve().parents[2]
+MODELS_PATH = BASE_DIR / "models"
 
+
+def train_model(df):
     df_model = df.copy()
 
     le = LabelEncoder()
@@ -45,6 +49,8 @@ def train_model(df):
 
     plt.imshow(cm, cmap="Blues")
     plt.title("Confusion Matrix")
+    plt.xticks([0, 1], ["No Podium", "Podium"])
+    plt.yticks([0, 1], ["No Podium", "Podium"])
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
 
@@ -53,3 +59,10 @@ def train_model(df):
             plt.text(j, i, cm[i][j], ha="center", va="center", color="red")
 
     plt.show()
+
+    MODELS_PATH.mkdir(exist_ok=True)
+
+    joblib.dump(model, MODELS_PATH / "logistic_regression_model.pkl")
+    joblib.dump(scaler, MODELS_PATH / "logistic_regression_scaler.pkl")
+
+    print("\nLogistic Regression model and scaler saved successfully.")
