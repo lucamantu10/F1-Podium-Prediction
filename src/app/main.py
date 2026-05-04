@@ -14,7 +14,7 @@ def main():
 
     save_to_db(df)
 
-    print("Dataset saved to SQLite")
+    print("\nTraining pipeline completed successfully.")
 
 
 if __name__ == "__main__":
