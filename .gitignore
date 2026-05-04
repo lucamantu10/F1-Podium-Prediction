@@ -205,3 +205,29 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# --- Project specific (F1 Podium Prediction) ---
+
+# Database
+data/database/
+*.db
+
+# Cached API data (FastF1)
+cache/
+
+# Processed data
+data/processed/
+
+# Models
+models/
+*.pkl
+*.keras
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary test files
+tf.py
