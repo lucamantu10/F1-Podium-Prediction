@@ -31,14 +31,20 @@ def train_model(df):
     y = df_model["podium"]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
 
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
-    model = LogisticRegression(max_iter=2000, class_weight="balanced")
+    model = LogisticRegression(
+        max_iter=2000,
+        class_weight="balanced",
+        solver="lbfgs",
+        C=0.5,
+        random_state=42
+    )
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
@@ -46,6 +52,12 @@ def train_model(df):
     print("\nAccuracy:", accuracy_score(y_test, y_pred))
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred))
+
+    print("\nModel interpretation:")
+    print("Accuracy shows overall correctness, but for this project the podium class is more important.")
+    print("Precision tells how reliable podium predictions are.")
+    print("Recall tells how many real podiums the model detects.")
+    print("F1-score balances precision and recall.")
 
     cm = confusion_matrix(y_test, y_pred)
 

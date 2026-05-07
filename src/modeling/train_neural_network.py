@@ -32,7 +32,8 @@ def train_neural_network(df):
         X,
         y,
         test_size=0.2,
-        random_state=42
+        random_state=42,
+        stratify=y
     )
 
     scaler = StandardScaler()
@@ -40,13 +41,15 @@ def train_neural_network(df):
     X_test = scaler.transform(X_test)
 
     model = MLPClassifier(
-        hidden_layer_sizes=(64, 32),
+        hidden_layer_sizes=(128, 64, 32),
         activation="relu",
         solver="adam",
-        max_iter=500,
+        alpha=0.001,
+        learning_rate_init=0.001,
+        max_iter=700,
         early_stopping=True,
         validation_fraction=0.2,
-        n_iter_no_change=20,
+        n_iter_no_change=30,
         random_state=42
     )
 
