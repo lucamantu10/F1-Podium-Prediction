@@ -1,89 +1,81 @@
-# F1 Podium Prediction
+# F1 Podium Predictor
 
-A machine learning project that predicts whether a Formula 1 driver will finish on the podium based on historical race data and engineered performance features.
+A production-style Formula 1 machine learning dashboard that predicts podium probability using historical race data, engineered performance features, FastF1 real race data, SQLite, and an interactive Streamlit interface.
+
+The goal of this project is to go beyond a simple machine learning script and build an end-to-end data product that combines data processing, model training, race analytics, prediction simulation, and visual dashboard design.
+
+---
 
 ## Overview
 
-This project builds a predictive model using historical F1 data to estimate the probability of a driver finishing in the top 3 positions of a race.
+F1 Podium Predictor estimates whether a Formula 1 driver is likely to finish on the podium.
 
-Instead of relying only on raw data, the model uses engineered features that capture real racing dynamics, such as recent driver performance and team strength.
+The application uses historical Formula 1 race data to train machine learning models and combines it with FastF1 data to analyze real race sessions. The dashboard allows users to select drivers, simulate race scenarios, compare model outputs, and generate podium prediction leaderboards for real races.
+
+---
+
+## Main Features
+
+- Historical Formula 1 data processing
+- Feature engineering for driver and constructor performance
+- Logistic Regression model
+- MLP Neural Network model
+- Model comparison inside the dashboard
+- SQLite database integration
+- FastF1 real race data integration
+- Race results, qualifying data, lap times, tyre strategy, weather data, and telemetry
+- Real race podium prediction leaderboard
+- Single-driver race scenario simulation
+- Predicted podium vs actual podium comparison
+- Premium Streamlit dashboard UI
+
+---
 
 ## Tech Stack
 
-- Python  
-- Pandas  
-- Scikit-learn  
-- NumPy  
+- Python
+- Pandas
+- Scikit-learn
+- SQLite
+- FastF1
+- Streamlit
+- Joblib
+- Matplotlib
 
-## Dataset
-
-The project uses historical Formula 1 data including:
-- Race results  
-- Driver information  
-- Constructor (team) data  
-- Qualifying results  
-
-Data is merged and processed into a single dataset used for training.
-
-## Feature Engineering
-
-The model performance is significantly improved through custom features:
-
-- **driver_form** – average finishing position over the last 5 races  
-- **constructor_form** – team performance based on last 5 races  
-- **experience** – number of races completed by a driver  
-- **grid** – starting position  
-- **qualifying position**
-
-## Model
-
-- Logistic Regression  
-- Class balancing (`class_weight="balanced"`) to handle imbalanced dataset
-
-
-## Results
-
-- **Accuracy:** ~0.82  
-- **Recall (Podium):** ~0.90  
-
-The model prioritizes detecting podium finishes, making recall more important than accuracy.
+---
 
 ## Project Structure
 
-```
-src/
+```text
+F1-Podium-Prediction/
 │
-├── data_collection/
-│   └── load_raw_data.py
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── database/
 │
-├── feature_engineering/
-│   └── build_features.py
+├── models/
 │
-├── modeling/
-│   └── train_model.py
+├── src/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── predict.py
+│   │   └── streamlit_app.py
+│   │
+│   ├── data/
+│   │   └── database.py
+│   │
+│   ├── data_collection/
+│   │   ├── load_raw_data.py
+│   │   └── fastf1_data.py
+│   │
+│   ├── feature_engineering/
+│   │   └── build_features.py
+│   │
+│   └── modeling/
+│       ├── train_model.py
+│       └── train_neural_network.py
 │
-├── app/
-│   └── main.py
-```
-
-## How to Run
-
-```bash
-pip install -r requirements.txt
-python src/app/main.py
-```
-
-## Key Learnings
-
-- Importance of feature engineering  
-- Handling imbalanced datasets  
-- Avoiding data leakage  
-- Building modular ML pipelines  
-- Evaluating models beyond accuracy  
-
-## Future Improvements
-
-- Neural Network (MLP) implementation  
-- Integration with FastF1  
-- Streamlit dashboard  
-- Hyperparameter tuning  
+├── requirements.txt
+├── README.md
+└── .gitignore
