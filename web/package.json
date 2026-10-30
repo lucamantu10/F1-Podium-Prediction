@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "types": "python -c \"import json; from f1podium.api.app import create_app; json.dump(create_app().openapi(), open('openapi.json', 'w'), indent=1)\" && openapi-typescript openapi.json -o src/lib/api-types.ts"
   },
   "dependencies": {
