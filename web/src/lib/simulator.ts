@@ -59,6 +59,8 @@ export type RaceFile = {
   model: string;
   outOfSample: boolean;
   circuit: Circuit;
+  /** Race distance in laps (last known for this circuit when not yet raced). */
+  laps?: number;
   entries: RaceEntry[];
 };
 
@@ -70,6 +72,8 @@ export type DriverResult = {
   positions: number[];
   win: number;
   podium: number;
+  /** Probability of retiring (only non-zero when the scenario adds retirements). */
+  dnf: number;
   expectedPosition: number;
   strength: number;
   /** Largest effects on strength relative to the field average, strongest first. */
@@ -80,6 +84,21 @@ export type SimulationResult = {
   drivers: DriverResult[]; // sorted by podium probability, highest first
   simulations: number;
 };
+
+/**
+ * What-if knobs layered on top of the trained model. None of them were learned
+ * from data; they are there to play with. Defaults reproduce the model exactly.
+ */
+export type Scenario = {
+  /** Scales the race-day luck. 1 = as trained, 2 = twice as unpredictable. */
+  chaos?: number;
+  /** Extra retirements as a multiple of each car's recent DNF rate. 0 = off. */
+  reliability?: number;
+  /** Drivers who retire for certain. */
+  retired?: number[];
+};
+
+export type SimOptions = Scenario & { simulations?: number; seed?: number; explain?: number };
 
 const PODIUM = 3;
 
@@ -134,29 +153,78 @@ export function applyGrid(entries: RaceEntry[], order: number[], features: Featu
   return moved;
 }
 
+/** Strengths and per-feature contributions for a field. */
+export function strengthsOf(entries: RaceEntry[], params: SimulatorParams) {
+  const parts = entries.map((e) => standardise(e.features, params).map((v, i) => v * params.coef[i]));
+  return { parts, strengths: parts.map((row) => row.reduce((s, v) => s + v, 0)) };
+}
+
+/** Per-driver probability of an extra retirement under a scenario. */
+export function retirementOdds(entries: RaceEntry[], features: FeatureInfo[], params: SimulatorParams, scenario: Scenario = {}) {
+  const iDrv = features.findIndex((f) => f.name === "drv_dnf_rate_10");
+  const iCon = features.findIndex((f) => f.name === "con_dnf_rate_10");
+  const retired = new Set(scenario.retired ?? []);
+  const scale = scenario.reliability ?? 0;
+  return entries.map((e) => {
+    if (retired.has(e.driverId)) return 1;
+    if (!scale) return 0;
+    const drv = e.features[iDrv] ?? params.median[iDrv];
+    const con = e.features[iCon] ?? params.median[iCon];
+    return Math.min(0.9, ((drv + con) / 2) * scale);
+  });
+}
+
+/**
+ * Draw one finishing order (indices into the field). Retirements go to the back,
+ * in the order they would have run. Returns how many cars finished.
+ */
+export function drawRace(
+  strengths: number[],
+  dnfOdds: number[],
+  chaos: number,
+  random: () => number,
+  order: number[],
+  noisy: Float64Array,
+): number {
+  const n = strengths.length;
+  let finished = 0;
+  for (let i = 0; i < n; i++) {
+    // Gumbel(0, 1) noise scaled by chaos; guard against log(0).
+    noisy[i] = strengths[i] - chaos * Math.log(-Math.log(random() || Number.MIN_VALUE));
+    if (dnfOdds[i] > 0 && random() < dnfOdds[i]) noisy[i] -= 1e6;
+    else finished++;
+  }
+  order.sort((x, y) => noisy[y] - noisy[x]);
+  return finished;
+}
+
+export function makeRng(seed: number) {
+  return rng(seed);
+}
+
 export function simulateRace(
   entries: RaceEntry[],
   params: SimulatorParams,
   features: FeatureInfo[],
-  { simulations = 10_000, seed = 42, explain = 4 } = {},
+  { simulations = 10_000, seed = 42, explain = 4, ...scenario }: SimOptions = {},
 ): SimulationResult {
   const n = entries.length;
-  const z = entries.map((e) => standardise(e.features, params));
-  const parts = z.map((row) => row.map((v, i) => v * params.coef[i]));
-  const strengths = parts.map((row) => row.reduce((s, v) => s + v, 0));
+  const { parts, strengths } = strengthsOf(entries, params);
+  const dnfOdds = retirementOdds(entries, features, params, scenario);
+  const chaos = scenario.chaos ?? 1;
 
   // counts[driver * n + position]
   const counts = new Float64Array(n * n);
+  const dnfs = new Float64Array(n);
   const random = rng(seed);
   const noisy = new Float64Array(n);
   const order = Array.from({ length: n }, (_, i) => i);
   for (let s = 0; s < simulations; s++) {
-    for (let i = 0; i < n; i++) {
-      // Gumbel(0, 1) noise; guard against log(0).
-      noisy[i] = strengths[i] - Math.log(-Math.log(random() || Number.MIN_VALUE));
+    const finished = drawRace(strengths, dnfOdds, chaos, random, order, noisy);
+    for (let p = 0; p < n; p++) {
+      counts[order[p] * n + p]++;
+      if (p >= finished) dnfs[order[p]]++;
     }
-    order.sort((a, b) => noisy[b] - noisy[a]);
-    for (let p = 0; p < n; p++) counts[order[p] * n + p]++;
   }
 
   const fieldMean = features.map((_, j) => parts.reduce((s, row) => s + row[j], 0) / n);
@@ -172,6 +240,7 @@ export function simulateRace(
       positions,
       win: positions[0],
       podium: positions.slice(0, PODIUM).reduce((s, v) => s + v, 0),
+      dnf: dnfs[i] / simulations,
       expectedPosition: positions.reduce((s, v, p) => s + v * (p + 1), 0),
       strength: strengths[i],
       explanation,
@@ -182,7 +251,7 @@ export function simulateRace(
 }
 
 /** Convenience wrapper: simulate a race file, optionally with an edited grid. */
-export function predictRace(model: ModelFile, race: RaceFile, order?: number[], options = {}) {
+export function predictRace(model: ModelFile, race: RaceFile, order?: number[], options: SimOptions = {}) {
   const entries = order ? applyGrid(race.entries, order, model.features) : race.entries;
   return simulateRace(entries, paramsFor(model, race), model.features, { seed: race.raceId, ...options });
 }

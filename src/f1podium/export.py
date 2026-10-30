@@ -12,6 +12,9 @@ Layout under ``out_dir``::
     races/{year}-{round}.json  entry list with raw pre-race features and results
     drivers/index.json         every driver who raced since the first backtest season
     drivers/{driverId}.json    profile, career and season stats, recent races
+    teams/index.json           every team that raced since the first backtest season
+    teams/{constructorId}.json seasons, totals, drivers and recent races
+    championship.json          current standings and remaining calendar (mid-season only)
 """
 
 import json
@@ -97,6 +100,18 @@ class Exporter:
         # Recent entries feed driver pages; restrict to drivers seen since the backtest start.
         self.recent = self.features[self.features["year"] >= BACKTEST_START_YEAR]
 
+        # Race distance in laps (the winner's lap count) for the replay animation.
+        laps = self.raw.results.groupby("raceId")["laps"].max()
+        all_races = race_calendar(self.raw)
+        all_races["laps"] = all_races["raceId"].map(laps)
+        self.race_laps = all_races.set_index("raceId")["laps"]
+        self.circuit_laps = (
+            all_races.dropna(subset=["laps"])
+            .sort_values("race_seq")
+            .groupby("circuitId")["laps"]
+            .last()
+        )
+
     # --- helpers ------------------------------------------------------------------
     def _circuit(self, race) -> dict:
         return {
@@ -166,7 +181,172 @@ class Exporter:
             # season for completed races, the final model for upcoming ones.
             "model": str(fold) if fold else "final",
             "outOfSample": bool(fold) or not completed,
+            "laps": self._laps(race),
             "entries": rows,
+        }
+
+    def _laps(self, race) -> int:
+        laps = self.race_laps.get(race["raceId"])
+        if laps is None or pd.isna(laps):
+            laps = self.circuit_laps.get(race["circuitId"], 58)
+        return int(laps)
+
+    # --- teams ----------------------------------------------------------------------
+    def _team_entries(self, constructor_id: int) -> pd.DataFrame:
+        return self.recent[
+            (self.recent["constructorId"] == constructor_id)
+            & self.recent["finish_position"].notna()
+        ].sort_values("race_seq")
+
+    def _constructor_final_standing(self, constructor_id: int, year: int):
+        races = race_calendar(self.raw)
+        races = races[
+            (races["year"] == year) & races["raceId"].isin(self.raw.constructor_standings["raceId"])
+        ]
+        if races.empty:
+            return None, None
+        last = races.iloc[-1]["raceId"]
+        row = self.raw.constructor_standings[
+            (self.raw.constructor_standings["raceId"] == last)
+            & (self.raw.constructor_standings["constructorId"] == constructor_id)
+        ]
+        if row.empty:
+            return None, None
+        return int(row["position"].iloc[0]), float(row["points"].iloc[0])
+
+    def teams_index(self) -> list[dict]:
+        latest_year = int(self.recent["year"].max())
+        out = []
+        for cid, g in self.recent[self.recent["finish_position"].notna()].groupby("constructorId"):
+            g = g.sort_values("race_seq")
+            last = g.iloc[-1]
+            out.append(
+                {
+                    "constructorId": int(cid),
+                    "name": last["team_name"],
+                    "firstSeason": int(g["year"].min()),
+                    "lastSeason": int(last["year"]),
+                    "active": int(last["year"]) == latest_year,
+                    "starts": int(g["raceId"].nunique()),
+                    "wins": int((g["finish_position"] == 1).sum()),
+                    "podiums": int((g["finish_position"] <= 3).sum()),
+                    "drivers": [
+                        self._driver_ref(r)
+                        for _, r in g[g["year"] == last["year"]]
+                        .drop_duplicates("driverId")
+                        .iterrows()
+                    ],
+                }
+            )
+        return sorted(out, key=lambda t: (not t["active"], -t["wins"], -t["podiums"], t["name"]))
+
+    def team(self, constructor_id: int) -> dict:
+        g = self._team_entries(constructor_id)
+        nationality = self.raw.constructors.set_index("constructorId")["nationality"].get(
+            constructor_id
+        )
+        seasons = []
+        for year, y in g.groupby("year"):
+            position, points = self._constructor_final_standing(constructor_id, int(year))
+            drivers = []
+            for _, r in y.drop_duplicates("driverId").iterrows():
+                scored = float(y.loc[y["driverId"] == r["driverId"], "points"].sum())
+                drivers.append({**self._driver_ref(r), "points": scored})
+            seasons.append(
+                {
+                    "year": int(year),
+                    "name": y["team_name"].iloc[-1],
+                    "championshipPosition": position,
+                    "points": points if points is not None else float(y["points"].sum()),
+                    "wins": int((y["finish_position"] == 1).sum()),
+                    "podiums": int((y["finish_position"] <= 3).sum()),
+                    "poles": int((y["quali_position"] == 1).sum()),
+                    "dnfs": int((y["finished"] == 0).sum()),
+                    "drivers": drivers,
+                }
+            )
+        recent = []
+        for _, r in list(g.groupby("raceId", sort=False))[-24:]:
+            best = r.sort_values("finish_position").iloc[0]
+            recent.append(
+                {
+                    "year": int(best["year"]),
+                    "round": int(best["round"]),
+                    "race": best["race_name"],
+                    "bestFinish": best["finish_position"],
+                    "points": float(r["points"].sum()),
+                    "finishes": [
+                        {
+                            "code": x["driver_code"],
+                            "finishPosition": x["finish_position"],
+                            "grid": x["grid"],
+                        }
+                        for _, x in r.iterrows()
+                    ],
+                }
+            )
+        last = g.iloc[-1] if len(g) else None
+        one_twos = g.groupby("raceId")["finish_position"].apply(lambda s: {1, 2} <= set(s)).sum()
+        current = g[g["year"] == g["year"].max()].drop_duplicates("driverId") if len(g) else g
+        return {
+            "constructorId": constructor_id,
+            "name": last["team_name"] if last is not None else None,
+            "nationality": nationality,
+            "seasons": seasons,
+            "totals": {
+                "starts": int(g["raceId"].nunique()),
+                "wins": int((g["finish_position"] == 1).sum()),
+                "podiums": int((g["finish_position"] <= 3).sum()),
+                "poles": int((g["quali_position"] == 1).sum()),
+                "points": float(g["points"].sum()),
+                "oneTwos": int(one_twos),
+            },
+            "recentRaces": recent,
+            "currentDrivers": [self._driver_ref(r) for _, r in current.iterrows()],
+        }
+
+    # --- championship ------------------------------------------------------------------
+    def championship(self) -> dict | None:
+        """Current standings and the remaining calendar of the latest season."""
+        season = self.calendar[self.calendar["year"] == self.calendar["year"].max()]
+        remaining = season[season["status"] != "completed"]
+        upcoming = season[season["status"].isin(["qualifying", "projected"])]
+        if remaining.empty or upcoming.empty:
+            return None
+        year = int(season["year"].iloc[0])
+        completed = season[season["status"] == "completed"]
+        teams = []
+        if not completed.empty:
+            last = completed.iloc[-1]["raceId"]
+            table = self.raw.constructor_standings[self.raw.constructor_standings["raceId"] == last]
+            names = self.raw.constructors.set_index("constructorId")["name"]
+            teams = [
+                {
+                    "constructorId": int(r.constructorId),
+                    "name": names.get(r.constructorId),
+                    "points": float(r.points),
+                    "position": int(r.position),
+                }
+                for r in table.sort_values("position").itertuples()
+            ]
+        nxt = upcoming.iloc[0]
+        return {
+            "year": year,
+            "afterRound": int(completed["round"].max()) if not completed.empty else 0,
+            # Every remaining round is simulated from the next race's entry list.
+            "entryListRace": f"{year}-{int(nxt['round'])}",
+            "pointsSystem": [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
+            "remaining": [
+                {
+                    "round": int(r["round"]),
+                    "name": r["race_name"],
+                    "date": r["date"],
+                    "circuit": self._circuit(r),
+                }
+                for _, r in remaining.iterrows()
+            ],
+            "drivers": self._standings(year),
+            "teams": teams,
         }
 
     def season(self, year: int, races: pd.DataFrame) -> dict:
@@ -477,6 +657,14 @@ def export(out_dir: Path = DEFAULT_OUT_DIR, artifacts_dir: Path = ARTIFACTS_DIR,
     for d in drivers_index:
         _write(out_dir / "drivers" / f"{d['driverId']}.json", ex.driver(d["driverId"]))
         counts["drivers"] += 1
+    teams_index = ex.teams_index()
+    _write(out_dir / "teams" / "index.json", teams_index)
+    for t in teams_index:
+        _write(out_dir / "teams" / f"{t['constructorId']}.json", ex.team(t["constructorId"]))
+    counts["teams"] = len(teams_index)
+    championship = ex.championship()
+    if championship:
+        _write(out_dir / "championship.json", championship)
     _write(out_dir / "index.json", ex.index([d["driverId"] for d in drivers_index]))
     log(f"Exported {counts} to {out_dir}")
     return counts
