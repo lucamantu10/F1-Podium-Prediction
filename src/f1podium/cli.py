@@ -1,4 +1,4 @@
-"""Command line entry point: ``f1podium update | train | predict | serve``."""
+"""Command line entry point: ``f1podium update | train | export | predict | serve``."""
 
 import argparse
 
@@ -31,6 +31,14 @@ def _update(args) -> None:
     update(current_season=args.season)
 
 
+def _export(args) -> None:
+    from pathlib import Path
+
+    from f1podium.export import DEFAULT_OUT_DIR, export
+
+    export(Path(args.out) if args.out else DEFAULT_OUT_DIR)
+
+
 def _serve(args) -> None:
     import uvicorn
 
@@ -56,6 +64,10 @@ def main(argv=None) -> None:
     p = sub.add_parser("update", help="Fetch seasons after the historical dump from Jolpica.")
     p.add_argument("--season", type=int, default=None, help="Last season (default: this year).")
     p.set_defaults(func=_update)
+
+    p = sub.add_parser("export", help="Write the JSON bundle the web app reads.")
+    p.add_argument("--out", default=None, help="Output folder (default: web/public/data).")
+    p.set_defaults(func=_export)
 
     p = sub.add_parser("serve", help="Run the HTTP API.")
     p.add_argument("--host", default="127.0.0.1")
