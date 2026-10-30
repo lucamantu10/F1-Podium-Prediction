@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/*
+  Tarmac and timing screens. The surface is graphite asphalt; text is grid-line
+  paint. Accents borrow the meaning they carry on F1 timing screens: purple marks
+  the best (the model's top pick), green an improvement, yellow a caution
+  (projected data), red a loss. Chart marks use deeper, validated steps.
+*/
+:root {
+  --asphalt: #1f2125;
+  --asphalt-2: #272a2f;
+  --asphalt-3: #30343a;
+  --line: #3a3e45;
+  --paint: #edebe6;
+  --ink-2: #aeb2b9;
+  --ink-3: #868b93;
+
+  --purple: #b98aff;
+  --green: #45d483;
+  --yellow: #f2c230;
+  --red: #ff6b5e;
+
+  --chart-model: #9b5cf0;
+  --chart-grid: #2a9db5;
+  --chart-up: #1aa39b;
+  --chart-down: #e2622e;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-asphalt: var(--asphalt);
+  --color-asphalt-2: var(--asphalt-2);
+  --color-asphalt-3: var(--asphalt-3);
+  --color-line: var(--line);
+  --color-paint: var(--paint);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-purple: var(--purple);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --color-red: var(--red);
+  --font-sans: var(--font-archivo);
+}
+
+html {
+  background: var(--asphalt);
+}
+
+body {
+  background: var(--asphalt);
+  color: var(--paint);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-variation-settings: "wdth" 100;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Archivo's width axis is the voice of the page: wide like broadcast graphics for
+   names and headlines, condensed for dense timing columns. */
+.type-wide {
+  font-variation-settings: "wdth" 125;
+}
+.type-condensed {
+  font-variation-settings: "wdth" 75;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--paint);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--chart-model);
+  color: white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,828 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "F1 Podium Predictor API",
+  "description": "Leak-free podium, win and finishing-position probabilities for F1 races.",
+  "version": "2.0.0"
+ },
+ "paths": {
+  "/api/health": {
+   "get": {
+    "summary": "Health",
+    "operationId": "health_api_health_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Health Api Health Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/meta": {
+   "get": {
+    "summary": "Meta",
+    "operationId": "meta_api_meta_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Meta"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/seasons": {
+   "get": {
+    "summary": "Seasons",
+    "operationId": "seasons_api_seasons_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/Season"
+         },
+         "type": "array",
+         "title": "Response Seasons Api Seasons Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/seasons/{year}/races": {
+   "get": {
+    "summary": "Races",
+    "operationId": "races_api_seasons__year__races_get",
+    "parameters": [
+     {
+      "name": "year",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Year"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/RaceSummary"
+         },
+         "title": "Response Races Api Seasons  Year  Races Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/races/{year}/{round_}": {
+   "get": {
+    "summary": "Race",
+    "operationId": "race_api_races__year___round___get",
+    "parameters": [
+     {
+      "name": "year",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Year"
+      }
+     },
+     {
+      "name": "round_",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Round "
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RacePrediction"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/races/{year}/{round_}/scenario": {
+   "post": {
+    "summary": "Scenario",
+    "operationId": "scenario_api_races__year___round___scenario_post",
+    "parameters": [
+     {
+      "name": "year",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Year"
+      }
+     },
+     {
+      "name": "round_",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Round "
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ScenarioRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RacePrediction"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/model": {
+   "get": {
+    "summary": "Model",
+    "description": "Backtest metrics, calibration, feature importance and simulator weights.",
+    "operationId": "model_api_model_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Model Api Model Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "Circuit": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "location": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "lat": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lat"
+     },
+     "lng": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lng"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "location",
+     "country",
+     "lat",
+     "lng"
+    ],
+    "title": "Circuit"
+   },
+   "Contribution": {
+    "properties": {
+     "feature": {
+      "type": "string",
+      "title": "Feature"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "impact": {
+      "type": "number",
+      "title": "Impact",
+      "description": "Effect on driver strength vs. the field average."
+     }
+    },
+    "type": "object",
+    "required": [
+     "feature",
+     "label",
+     "impact"
+    ],
+    "title": "Contribution"
+   },
+   "DriverPrediction": {
+    "properties": {
+     "driver_id": {
+      "type": "integer",
+      "title": "Driver Id"
+     },
+     "code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "team": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team"
+     },
+     "team_id": {
+      "type": "integer",
+      "title": "Team Id"
+     },
+     "grid": {
+      "type": "integer",
+      "title": "Grid"
+     },
+     "quali_position": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quali Position"
+     },
+     "probability": {
+      "type": "number",
+      "title": "Probability",
+      "description": "Podium probability."
+     },
+     "win_probability": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Win Probability"
+     },
+     "expected_position": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expected Position"
+     },
+     "position_probabilities": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position Probabilities"
+     },
+     "explanation": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/Contribution"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Explanation"
+     },
+     "finish_position": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finish Position"
+     }
+    },
+    "type": "object",
+    "required": [
+     "driver_id",
+     "code",
+     "name",
+     "team",
+     "team_id",
+     "grid",
+     "quali_position",
+     "probability",
+     "win_probability",
+     "expected_position",
+     "position_probabilities",
+     "explanation",
+     "finish_position"
+    ],
+    "title": "DriverPrediction"
+   },
+   "DriverRef": {
+    "properties": {
+     "driver_id": {
+      "type": "integer",
+      "title": "Driver Id"
+     },
+     "code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "team": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Team"
+     }
+    },
+    "type": "object",
+    "required": [
+     "driver_id",
+     "code",
+     "name",
+     "team"
+    ],
+    "title": "DriverRef"
+   },
+   "Evaluation": {
+    "properties": {
+     "predicted_podium": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Predicted Podium"
+     },
+     "actual_podium": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Actual Podium"
+     },
+     "podium_hits": {
+      "type": "integer",
+      "title": "Podium Hits"
+     },
+     "winner_on_predicted_podium": {
+      "type": "boolean",
+      "title": "Winner On Predicted Podium"
+     },
+     "top_pick_on_podium": {
+      "type": "boolean",
+      "title": "Top Pick On Podium"
+     }
+    },
+    "type": "object",
+    "required": [
+     "predicted_podium",
+     "actual_podium",
+     "podium_hits",
+     "winner_on_predicted_podium",
+     "top_pick_on_podium"
+    ],
+    "title": "Evaluation"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "Meta": {
+    "properties": {
+     "version": {
+      "type": "string",
+      "title": "Version"
+     },
+     "model": {
+      "type": "string",
+      "title": "Model"
+     },
+     "model_label": {
+      "type": "string",
+      "title": "Model Label"
+     },
+     "trained_through": {
+      "type": "string",
+      "title": "Trained Through"
+     },
+     "seasons": {
+      "items": {
+       "$ref": "#/components/schemas/Season"
+      },
+      "type": "array",
+      "title": "Seasons"
+     },
+     "latest_race": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RaceSummary"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "next_race": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RaceSummary"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "headline": {
+      "additionalProperties": {
+       "type": "number"
+      },
+      "type": "object",
+      "title": "Headline"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version",
+     "model",
+     "model_label",
+     "trained_through",
+     "seasons",
+     "latest_race",
+     "next_race",
+     "headline"
+    ],
+    "title": "Meta"
+   },
+   "RacePrediction": {
+    "properties": {
+     "race": {
+      "$ref": "#/components/schemas/RaceSummary"
+     },
+     "model": {
+      "type": "string",
+      "title": "Model"
+     },
+     "out_of_sample": {
+      "type": "boolean",
+      "title": "Out Of Sample",
+      "description": "True when the model was trained without this race's season."
+     },
+     "leaderboard": {
+      "items": {
+       "$ref": "#/components/schemas/DriverPrediction"
+      },
+      "type": "array",
+      "title": "Leaderboard"
+     },
+     "evaluation": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Evaluation"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "race",
+     "model",
+     "out_of_sample",
+     "leaderboard",
+     "evaluation"
+    ],
+    "title": "RacePrediction"
+   },
+   "RaceSummary": {
+    "properties": {
+     "year": {
+      "type": "integer",
+      "title": "Year"
+     },
+     "round": {
+      "type": "integer",
+      "title": "Round"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "date": {
+      "type": "string",
+      "title": "Date"
+     },
+     "circuit": {
+      "$ref": "#/components/schemas/Circuit"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "completed",
+       "qualifying",
+       "projected",
+       "scheduled"
+      ],
+      "title": "Status"
+     },
+     "winner": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DriverRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "predicted_winner": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DriverRef"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Highest podium probability (out-of-sample for completed races)."
+     },
+     "podium_hits": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Podium Hits",
+      "description": "Predicted top 3 that stood on the podium."
+     }
+    },
+    "type": "object",
+    "required": [
+     "year",
+     "round",
+     "name",
+     "date",
+     "circuit",
+     "status"
+    ],
+    "title": "RaceSummary"
+   },
+   "ScenarioRequest": {
+    "properties": {
+     "grid": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Grid",
+      "description": "driverId -> new grid slot; displaced drivers shift by one place.",
+      "examples": [
+       {
+        "1": 1
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "grid"
+    ],
+    "title": "ScenarioRequest"
+   },
+   "Season": {
+    "properties": {
+     "year": {
+      "type": "integer",
+      "title": "Year"
+     },
+     "races": {
+      "type": "integer",
+      "title": "Races"
+     },
+     "completed": {
+      "type": "integer",
+      "title": "Completed"
+     }
+    },
+    "type": "object",
+    "required": [
+     "year",
+     "races",
+     "completed"
+    ],
+    "title": "Season"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  }
+ }
+}
