@@ -12,8 +12,10 @@ model that only knows what was known before the lights went out.
 - **A race simulator, not just a classifier.** A Plackett-Luce ranking model gives every driver
   a strength and runs the race 10,000 times, so win, podium and position chances are consistent
   across the whole field.
-- **Interactive what-ifs.** Drag a driver to another grid slot in the web app and the whole race
-  is re-simulated.
+- **Runs in the browser.** `f1podium export` writes the data and the simulator's parameters as
+  static JSON; the web app ("Lights Out") simulates races client-side, so it needs no server.
+- **Interactive what-ifs.** Drag a driver to another grid slot and the whole race is
+  re-simulated instantly.
 - **Up to date.** New seasons come from the Jolpica API (the successor to Ergast), including a
   projected grid for the next race before qualifying.
 
@@ -47,8 +49,9 @@ src/f1podium/    Python package
   train.py         season-by-season backtest, model comparison, artifact export
   predict.py       race predictions and what-if grids
   jolpica.py       incremental data updates
-  api/             FastAPI service
-web/             Next.js app (starting grid, simulator, season calendar, model report)
+  export.py        static JSON bundle for the web app (web/public/data)
+  api/             optional FastAPI service over the same predictions
+web/             "Lights Out" web app: Vite + React + TanStack Router, three.js car, in-browser simulator
 tests/           pytest suite, including leakage and API tests
 ```
 
@@ -63,18 +66,20 @@ pip install -e ".[dev]"
 
 f1podium update                   # optional: fetch the latest races from Jolpica
 f1podium train                    # backtest and write artifacts/ (about 30 seconds)
-f1podium serve                    # API on http://127.0.0.1:8000, docs at /docs
+f1podium export                   # write the JSON bundle to web/public/data
 ```
 
-In a second terminal:
+Then the web app:
 
 ```bash
 cd web
 npm install
-npm run dev                       # http://localhost:3000
+npm run dev                       # http://localhost:5173
 ```
 
-Other commands: `f1podium predict 2024 18` prints one race, `pytest` runs the tests.
+`npm run build` produces a static site in `web/dist/` that any static host can serve.
+
+Other commands: `f1podium predict 2024 18` prints one race, `f1podium serve` runs the optional API, `pytest` and `npm test` run the tests.
 
 ## API
 

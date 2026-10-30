@@ -239,3 +239,6 @@ data/live/.cache/
 
 # Local Claude Code preview config
 .claude/
+
+# Design-skill working files
+.taste-skill/

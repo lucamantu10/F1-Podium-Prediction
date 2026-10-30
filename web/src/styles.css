@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/*
+ * Lights Out design system.
+ * App (default) = dark "data terminal" on bottle green.
+ * .theme-intro = light intro page. .theme-inverse / .theme-yellow = intro sections.
+ * No gradients, glows, blur or resting shadows anywhere.
+ */
+
+@theme inline {
+  --font-sans: "Switzer", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-raised: var(--raised);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-signal: var(--signal);
+  --color-signal-off: var(--signal-off);
+  --color-helps: var(--helps);
+  --color-hurts: var(--hurts);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+}
+
+:root {
+  --ink: #0d2a1c;
+  --paper: #f7f7f7;
+  --background: #0d2a1c;
+  --foreground: #f2f4f1;
+  --card: #0a2016;
+  --raised: #12352a;
+  --primary: #f6e016;
+  --primary-foreground: #0d2a1c;
+  --muted-foreground: #a3b1a8;
+  --border: #1d4636;
+  --ring: #f6e016;
+  --signal: #e8102d;
+  --signal-off: #1e2b25;
+  --helps: #1aa39b;
+  --hurts: #e2622e;
+}
+
+.theme-intro {
+  --background: #f7f7f7;
+  --foreground: #0d2a1c;
+  --card: #ebebeb;
+  --raised: #ebebeb;
+  --muted-foreground: #5f6b64;
+  --border: #d4d8d5;
+  --ring: #0d2a1c;
+}
+
+.theme-inverse {
+  --background: #0d2a1c;
+  --foreground: #f7f7f7;
+  --muted-foreground: #a3b1a8;
+  --border: #1d4636;
+  --ring: #f6e016;
+}
+
+.theme-yellow {
+  --background: #f6e016;
+  --foreground: #0d2a1c;
+  --muted-foreground: #3d4a3f;
+  --border: #0d2a1c;
+  --ring: #0d2a1c;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    background: var(--ink);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility display {
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Yellow 1px marker exactly as wide as its label */
+@utility selected-line {
+  box-shadow: inset 0 -1px 0 var(--color-primary);
+}
+
+@utility skeleton {
+  background: var(--color-raised);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
