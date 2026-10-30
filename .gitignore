@@ -231,3 +231,9 @@ models/
 
 # Temporary test files
 tf.py
+
+# Trained model artifacts (recreate with `f1podium train`)
+artifacts/
+
+# Local Claude Code preview config
+.claude/
