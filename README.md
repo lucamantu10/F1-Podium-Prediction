@@ -1,373 +1,101 @@
 # F1 Podium Predictor
 
-A production-style Formula 1 machine learning dashboard that predicts podium probability using historical race data, engineered performance features, FastF1 real race data, SQLite, and an interactive Streamlit interface.
+Podium, win and finishing-position probabilities for every Formula 1 race since 2014, from a
+model that only knows what was known before the lights went out.
 
-The goal of this project is to go beyond a simple machine learning script and build an end-to-end data product that combines data processing, model training, race analytics, prediction simulation, and visual dashboard design.
+- **Leak-free by construction.** Every feature for a race is built from earlier races in
+  calendar order, plus that race's grid and qualifying. A test scrambles a race's result and
+  checks that none of its features move.
+- **Honest evaluation.** Each season is predicted by a model trained only on the seasons before
+  it, then scored against what happened. Those out-of-sample predictions are what the site
+  shows for past races.
+- **A race simulator, not just a classifier.** A Plackett-Luce ranking model gives every driver
+  a strength and runs the race 10,000 times, so win, podium and position chances are consistent
+  across the whole field.
+- **Interactive what-ifs.** Drag a driver to another grid slot in the web app and the whole race
+  is re-simulated.
+- **Up to date.** New seasons come from the Jolpica API (the successor to Ergast), including a
+  projected grid for the next race before qualifying.
 
----
+## Results
 
-## Overview
+Backtest over 270 races, 2014 to 2026, each season predicted without having seen it:
 
-F1 Podium Predictor estimates whether a Formula 1 driver is likely to finish on the podium.
+| Model | Podium places called | Top pick on podium | ROC-AUC | Log loss |
+|---|---|---|---|---|
+| **Race simulator (Plackett-Luce)**, used on the site | 68.6% | 81.9% | 0.943 | 0.2067 |
+| Logistic regression | 68.6% | 82.6% | 0.943 | 0.2073 |
+| Gradient boosting | 69.0% | 82.2% | 0.940 | 0.2149 |
+| Neural network (MLP) | 68.8% | 78.1% | 0.938 | 0.2188 |
+| First three on the grid | 69.1% | 81.1% | – | – |
 
-The application uses historical Formula 1 race data to train machine learning models and combines it with FastF1 data to analyze real race sessions. The dashboard allows users to select drivers, simulate race scenarios, compare model outputs, and generate podium prediction leaderboards for real races.
+The headline finding: starting position is so predictive in Formula 1 that "the first three on
+the grid" calls about as many podium places as any model. The models' value is in calibrated
+probabilities (when the simulator says 30%, about 30% of those drivers reach the podium), in
+win and position chances, and in explaining each prediction. The "How it works" page in the app
+shows the season-by-season comparison and the calibration curve.
 
----
-
-## Main Features
-
-- Historical Formula 1 data processing
-- Feature engineering for driver and constructor performance
-- Logistic Regression model
-- MLP Neural Network model
-- Model comparison inside the dashboard
-- SQLite database integration
-- FastF1 real race data integration
-- Race results, qualifying data, lap times, tyre strategy, weather data, and telemetry
-- Real race podium prediction leaderboard
-- Single-driver race scenario simulation
-- Predicted podium vs actual podium comparison
-- Premium Streamlit dashboard UI
-
----
-
-## Tech Stack
-
-- Python
-- Pandas
-- Scikit-learn
-- SQLite
-- FastF1
-- Streamlit
-- Joblib
-- Matplotlib
-
----
-
-## Project Structure
+## Architecture
 
 ```text
-F1-Podium-Prediction/
-│
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── database/
-│
-├── models/
-│
-├── src/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── predict.py
-│   │   └── streamlit_app.py
-│   │
-│   ├── data/
-│   │   └── database.py
-│   │
-│   ├── data_collection/
-│   │   ├── load_raw_data.py
-│   │   └── fastf1_data.py
-│   │
-│   ├── feature_engineering/
-│   │   └── build_features.py
-│   │
-│   └── modeling/
-│       ├── train_model.py
-│       └── train_neural_network.py
-│
-├── requirements.txt
-├── README.md
-└── .gitignore
+data/raw/        Ergast CSV dump up to 2024 (unchanged)
+data/live/       Seasons from 2025 onwards, fetched from Jolpica in the same schema
+src/f1podium/    Python package
+  data.py          load and merge the dumps, build one row per driver per race
+  features.py      pre-race features (form, track record, standings, qualifying gaps, ranks in the field)
+  models.py        race simulator plus three classifiers behind one interface
+  train.py         season-by-season backtest, model comparison, artifact export
+  predict.py       race predictions and what-if grids
+  jolpica.py       incremental data updates
+  api/             FastAPI service
+web/             Next.js app (starting grid, simulator, season calendar, model report)
+tests/           pytest suite, including leakage and API tests
 ```
 
----
+## Running it
 
-## Machine Learning Models
-
-### Logistic Regression
-
-The Logistic Regression model is used as a high-recall baseline.
-
-It is more aggressive in detecting potential podium finishes, which means it can identify many real podium candidates but may also produce more false positives.
-
-### MLP Neural Network
-
-The MLP Neural Network is implemented with Scikit-learn's `MLPClassifier`.
-
-It uses multiple hidden layers and is more conservative than Logistic Regression. It usually produces safer podium predictions, but it may miss more actual podium finishes.
-
-Using both models gives a more realistic view of model behavior and allows comparison between a classic machine learning baseline and a neural network approach.
-
----
-
-## Features Used by the Models
-
-The models use a combination of race, driver, constructor, and performance-based features:
-
-- race ID
-- driver ID
-- constructor ID
-- starting grid position
-- season/year
-- driver identity
-- constructor/team
-- race name
-- qualifying position
-- driver form
-- constructor form
-- driver experience
-
-The target variable is:
-
-```text
-podium = 1 if the driver finished in the top 3
-podium = 0 otherwise
-```
-
----
-
-## Feature Engineering
-
-The project builds additional features from the historical dataset.
-
-### Driver Form
-
-The driver's recent average finishing position based on previous races.
-
-### Constructor Form
-
-The constructor's recent average finishing position based on previous races.
-
-### Experience
-
-The number of previous race entries for a driver in the dataset.
-
-These features help the model capture recent performance and driver experience instead of relying only on static race information.
-
----
-
-## FastF1 Integration
-
-The application integrates FastF1 to retrieve real Formula 1 session data.
-
-FastF1 data used in the dashboard includes:
-
-- race results
-- qualifying results
-- lap times
-- sector times
-- tyre compounds
-- tyre life
-- weather data
-- driver telemetry
-
-This allows the project to work not only as a static historical model, but also as a race intelligence dashboard.
-
----
-
-## Streamlit Dashboard
-
-The Streamlit application contains four main sections:
-
-### Prediction Center
-
-Allows the user to select a driver and run podium predictions using either Logistic Regression, MLP Neural Network, or both models.
-
-It also includes race scenario presets such as:
-
-- default historical profile
-- strong qualifying
-- midfield start
-- bad qualifying / comeback
-- custom manual inputs
-
-### Race Predictor
-
-Uses FastF1 race data and the trained models to generate a podium probability leaderboard for a selected real race.
-
-It includes:
-
-- single driver scenario prediction
-- predicted podium
-- actual podium
-- prediction summary
-- podium match score
-- premium probability leaderboard
-
-### FastF1 Intelligence
-
-Provides real race analytics, including:
-
-- race results
-- qualifying results
-- lap time analysis
-- tyre strategy
-- weather data
-- telemetry
-
-### Project Overview
-
-Summarizes the purpose, technology stack, and modeling strategy of the project.
-
----
-
-## How to Run the Project
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/lucamantu10/F1-Podium-Prediction.git
-cd F1-Podium-Prediction
-```
-
----
-
-### 2. Create a virtual environment
+Python 3.11+ and Node 20+.
 
 ```bash
 python -m venv .venv
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+pip install -e ".[dev]"
+
+f1podium update                   # optional: fetch the latest races from Jolpica
+f1podium train                    # backtest and write artifacts/ (about 30 seconds)
+f1podium serve                    # API on http://127.0.0.1:8000, docs at /docs
 ```
 
-Activate it:
-
-#### Windows
+In a second terminal:
 
 ```bash
-.venv\Scripts\activate
+cd web
+npm install
+npm run dev                       # http://localhost:3000
 ```
 
-#### macOS / Linux
+Other commands: `f1podium predict 2024 18` prints one race, `pytest` runs the tests.
 
-```bash
-source .venv/bin/activate
-```
+## API
 
----
+| Endpoint | Returns |
+|---|---|
+| `GET /api/meta` | model info, seasons, latest and next race, headline metrics |
+| `GET /api/seasons/{year}/races` | the calendar with winners, model picks and podium places called |
+| `GET /api/races/{year}/{round}` | full prediction: podium, win and position chances, explanations, result comparison |
+| `POST /api/races/{year}/{round}/scenario` | the same for an edited grid, e.g. `{"grid": {"844": 1}}` |
+| `GET /api/model` | backtest metrics, calibration, feature importance |
 
-### 3. Install dependencies
+## Limitations
 
-```bash
-pip install -r requirements.txt
-```
+- Crashes, safety cars, strategy, weather and mid-race penalties are not known before the
+  start, which caps how accurate any pre-race model can be.
+- Before qualifying, the next race's grid is projected from recent qualifying results.
+- Big regulation changes (such as 2026) take a few races to show up in the form features.
 
----
+## Earlier version
 
-### 4. Run the training pipeline
+The first version of this project, a Streamlit dashboard with logistic regression and an MLP
+trained on a random split, is still in `src/app/` for reference.
 
-```bash
-python -m src.app.main
-```
-
-This will:
-
-- load the raw data
-- build the final dataset
-- train the Logistic Regression model
-- train the MLP Neural Network model
-- save model artifacts locally
-- save the processed dataset to SQLite
-
----
-
-### 5. Run the Streamlit dashboard
-
-```bash
-streamlit run src/app/streamlit_app.py
-```
-
----
-
-## Generated Files
-
-The following files and folders are generated locally and are not tracked in GitHub:
-
-```text
-models/
-data/database/
-data/processed/
-cache/
-```
-
-These files can be recreated by running:
-
-```bash
-python -m src.app.main
-```
-
-FastF1 cache files are recreated automatically when FastF1 data is loaded.
-
----
-
-## Requirements
-
-The project uses a minimal `requirements.txt` to avoid dependency conflicts:
-
-```text
-pandas
-numpy
-scikit-learn
-matplotlib
-fastf1
-streamlit
-joblib
-```
-
-TensorFlow is not included in the final project dependencies.
-
-The neural network model is implemented using Scikit-learn's `MLPClassifier` for better portability and stability.
-
----
-
-## Current Limitations
-
-This project predicts podium probability, not the exact final race classification.
-
-The Race Predictor ranks drivers based on estimated podium probability. This means the predicted top 3 should be interpreted as the drivers most likely to finish on the podium, not guaranteed finishing positions.
-
-Some limitations include:
-
-- driver matching between FastF1 and historical data may not always be perfect
-- model performance depends on the quality of historical features
-- external race factors such as crashes, safety cars, penalties, strategy mistakes, and weather changes are difficult to predict
-- telemetry is used for race analysis, not directly as a model feature yet
-
----
-
-## Future Improvements
-
-Potential improvements include:
-
-- adding track-specific performance features
-- adding weather-based model features
-- improving driver/team matching between FastF1 and historical data
-- adding feature importance or SHAP explainability
-- adding local team logos and circuit visuals
-- adding model calibration
-- predicting full race finishing order with a separate ranking/regression model
-- deploying the app online
-
----
-
-## What I Learned
-
-Through this project, I practiced:
-
-- building a structured Python project
-- working with historical sports data
-- feature engineering for machine learning
-- training and comparing multiple models
-- saving and loading models with Joblib
-- using SQLite as a local database
-- integrating FastF1 real race data
-- building an interactive Streamlit dashboard
-- debugging dependency and environment issues
-- improving a project from a basic script into a more complete data application
-
----
-
-## Disclaimer
-
-This project is built for educational and portfolio purposes.
-
-Predictions are model-based estimates and should not be interpreted as guaranteed race outcomes.
+Predictions are model estimates for educational purposes, not betting advice.
