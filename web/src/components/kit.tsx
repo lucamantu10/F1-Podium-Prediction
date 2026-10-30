@@ -1,16 +1,16 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { animate, motion, useInView, useReducedMotion } from "framer-motion";
+import { animate, AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { livery } from "@/lib/teams";
 import { cn } from "@/lib/utils";
 
-/* ---------- Logo: the start gantry ---------- */
-export function LogoMark({ lit = 0, className }: { lit?: number; className?: string }) {
+/* ---------- Logo: the start gantry, five red lights ---------- */
+export function LogoMark({ lit = 5, className }: { lit?: number; className?: string }) {
   return (
     <svg viewBox="0 0 64 16" className={className} aria-hidden>
-      <rect width="64" height="16" rx="8" fill="var(--ink)" />
+      <rect width="64" height="16" rx="8" fill="#141416" stroke="rgba(255,255,255,0.12)" />
       {[0, 1, 2, 3, 4].map((i) => (
-        <circle key={i} cx={8 + i * 12} cy="8" r="4.2" fill={i < lit ? "var(--signal)" : "#2c3b33"} />
+        <circle key={i} cx={8 + i * 12} cy="8" r="4" fill={i < lit ? "var(--signal)" : "#2b2b2f"} />
       ))}
     </svg>
   );
@@ -18,14 +18,14 @@ export function LogoMark({ lit = 0, className }: { lit?: number; className?: str
 
 export function Wordmark() {
   return (
-    <Link to="/" className="flex items-center gap-2.5 font-semibold tracking-tight" aria-label="Lights Out home">
-      <LogoMark className="h-4 w-16" lit={5} />
-      <span>Lights Out</span>
+    <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight" aria-label="Lights Out home">
+      <LogoMark className="h-3.5 w-14" />
+      <span className="hidden sm:inline">Lights Out</span>
     </Link>
   );
 }
 
-/* ---------- Buttons: one shape (square corners) ---------- */
+/* ---------- Buttons: white pill CTA, glass secondary ---------- */
 type BtnProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart"> & {
   variant?: "primary" | "ghost";
 };
@@ -36,10 +36,8 @@ export function Btn({ children, variant = "primary", className, ...rest }: BtnPr
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.97 }}
       className={cn(
-        "inline-flex h-12 items-center justify-center px-6 text-[16px] font-semibold transition-colors disabled:opacity-50",
-        variant === "primary"
-          ? "bg-primary text-primary-foreground hover:bg-foreground hover:text-background"
-          : "border border-border text-foreground hover:border-foreground",
+        "inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-[15px] font-semibold transition-colors disabled:opacity-40",
+        variant === "primary" ? "bg-primary text-primary-foreground hover:bg-white" : "glass text-foreground hover:bg-white/10",
         className,
       )}
       {...rest}
@@ -49,21 +47,38 @@ export function Btn({ children, variant = "primary", className, ...rest }: BtnPr
   );
 }
 
-/* ---------- App navigation ---------- */
-const NAV = [
+export function LinkPill({ to, children, className }: { to: string; children: ReactNode; className?: string }) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        "inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-7 text-[15px] font-semibold text-primary-foreground transition hover:-translate-y-px hover:bg-white",
+        className,
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/* ---------- Floating pill navigation ---------- */
+export const NAV = [
   { to: "/predict", label: "Predict" },
   { to: "/drivers", label: "Drivers" },
   { to: "/seasons", label: "Seasons" },
-  { to: "/model", label: "How it works" },
+  { to: "/model", label: "Model" },
 ] as const;
 
-export function AppNav() {
+export function PillNav() {
   const { pathname } = useLocation();
+  const [open, setOpen] = useState(false);
   return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-5 md:px-7">
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-40">
+      {/* a soft fade so content scrolling underneath stays out of the way */}
+      <div aria-hidden className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#060607] via-[#060607]/80 to-transparent" />
+      <div className="pointer-events-auto relative mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 pt-4 md:px-8 md:pt-6">
         <Wordmark />
-        <nav className="flex gap-4 text-[15px] md:gap-7" aria-label="Main">
+        <nav aria-label="Main" className="glass hidden items-center gap-1 rounded-full p-1.5 md:flex">
           {NAV.map((n) => {
             const active = pathname.startsWith(n.to);
             return (
@@ -71,9 +86,8 @@ export function AppNav() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  "py-1 transition-colors hover:text-foreground",
-                  active ? "selected-line text-foreground" : "text-muted-foreground",
-                  n.label === "Predict" && "hidden sm:block",
+                  "rounded-full px-4 py-2 text-[14px] transition-colors",
+                  active ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {n.label}
@@ -81,20 +95,57 @@ export function AppNav() {
             );
           })}
         </nav>
+        <div className="flex items-center gap-2">
+          <Link to="/predict" className="hidden h-10 items-center rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground transition hover:bg-white md:inline-flex">
+            Next race
+          </Link>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={open ? "Close menu" : "Open menu"}
+            className="glass flex h-10 w-10 items-center justify-center rounded-full md:hidden"
+          >
+            <span className="relative block h-3 w-4">
+              <span className={cn("absolute left-0 h-px w-4 bg-foreground transition", open ? "top-1.5 rotate-45" : "top-0")} />
+              <span className={cn("absolute left-0 h-px w-4 bg-foreground transition", open ? "top-1.5 -rotate-45" : "top-3")} />
+            </span>
+          </button>
+        </div>
       </div>
+      <AnimatePresence>
+        {open && (
+          <motion.nav
+            aria-label="Main"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="glass-strong pointer-events-auto mx-4 mt-3 flex flex-col rounded-3xl p-2 md:hidden"
+          >
+            {NAV.map((n) => (
+              <Link key={n.to} to={n.to} onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 text-[16px] hover:bg-white/10">
+                {n.label}
+              </Link>
+            ))}
+          </motion.nav>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
 
-export function Page({ children }: { children: ReactNode }) {
+/** Kept name for older imports. */
+export const AppNav = PillNav;
+
+export function Page({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <AppNav />
+    <div className="night-stage grain relative min-h-screen text-foreground">
+      <PillNav />
       <motion.main
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.35 }}
-        className="mx-auto max-w-[1440px] px-5 pb-32 pt-10 md:px-7"
+        transition={{ duration: 0.5 }}
+        className={cn("relative mx-auto max-w-[1440px] px-4 pb-32 pt-28 md:px-8 md:pt-36", className)}
       >
         {children}
       </motion.main>
@@ -102,15 +153,25 @@ export function Page({ children }: { children: ReactNode }) {
   );
 }
 
+/* ---------- Glass stat chip ---------- */
+export function StatChip({ value, label, className }: { value: ReactNode; label: string; className?: string }) {
+  return (
+    <div className={cn("glass rounded-2xl px-4 py-3", className)}>
+      <p className="stat text-[22px] leading-none text-foreground">{value}</p>
+      <p className="mt-1.5 text-[13px] leading-tight text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
 /* ---------- Loading / errors ---------- */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("skeleton", className)} aria-hidden />;
+  return <div className={cn("skeleton rounded-2xl", className)} aria-hidden />;
 }
 
 export function LoadState({ error, onRetry, rows = 4 }: { error?: unknown; onRetry?: () => void; rows?: number }) {
   if (error)
     return (
-      <div role="alert" className="border border-border bg-card p-8">
+      <div role="alert" className="glass rounded-3xl p-8">
         <p className="text-xl font-semibold">The data didn't load.</p>
         <p className="mt-1 text-muted-foreground">{error instanceof Error ? error.message : "Network error"}</p>
         {onRetry && (
@@ -147,10 +208,10 @@ export function Reveal({
   return (
     <C
       className={className}
-      initial={reduce ? false : { opacity: 0, y: 24 }}
+      initial={reduce ? false : { opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, delay: i * 0.075, ease: [0.2, 0.7, 0.2, 1] }}
+      transition={{ duration: 0.9, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </C>
@@ -161,18 +222,15 @@ export function CountUp({ value, decimals = 0, suffix = "" }: { value: number; d
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   const reduce = useReducedMotion();
-  const [v, setV] = useState(reduce ? value : 0);
+  const [v, setV] = useState(0);
   useEffect(() => {
     if (!inView || reduce) return;
-    const c = animate(0, value, { duration: 1.3, ease: [0.2, 0.7, 0.2, 1], onUpdate: setV });
+    const c = animate(0, value, { duration: 1.6, ease: [0.16, 1, 0.3, 1], onUpdate: setV });
     return () => c.stop();
   }, [inView, value, reduce]);
   return (
     <span ref={ref} className="tnum">
-      {(reduce ? value : v).toLocaleString("en-GB", {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      })}
+      {(reduce ? value : v).toLocaleString("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
       {suffix}
     </span>
   );
@@ -183,9 +241,10 @@ export function Portrait({ number, team, size = 44 }: { number: number | null; t
   const l = livery(team);
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden className="shrink-0">
-      <path d="M6 30 C6 14 16 6 27 6 C38 6 44 14 44 26 L44 34 C44 39 40 42 35 42 L12 42 C8 42 6 39 6 35 Z" fill={l.primary} />
-      <path d="M14 22 L42 22 L42 29 L18 29 C15 29 14 27 14 25 Z" fill={l.secondary} />
-      <text x="26" y="40" textAnchor="middle" fontSize="13" fontWeight="600" fill={l.secondary} style={{ fontFamily: "Switzer" }}>
+      <circle cx="24" cy="24" r="23" fill="#121214" stroke="rgba(255,255,255,0.1)" />
+      <path d="M10 30 C10 17 18 10 27 10 C36 10 40 17 40 26 L40 32 C40 36 37 38 33 38 L15 38 C12 38 10 36 10 33 Z" fill={l.primary} />
+      <path d="M17 22 L39 22 L39 28 L20 28 C18 28 17 26 17 25 Z" fill="#0a0a0b" opacity="0.85" />
+      <text x="26" y="36" textAnchor="middle" fontSize="10" fontWeight="700" fill="#0a0a0b" style={{ fontFamily: "Inter Tight" }}>
         {number ?? ""}
       </text>
     </svg>
@@ -193,7 +252,7 @@ export function Portrait({ number, team, size = 44 }: { number: number | null; t
 }
 
 export function Stripe({ team, className }: { team: string | null; className?: string }) {
-  return <span aria-hidden className={cn("inline-block w-1 shrink-0", className ?? "h-5")} style={{ background: livery(team).primary }} />;
+  return <span aria-hidden className={cn("inline-block w-1 shrink-0 rounded-full", className ?? "h-5")} style={{ background: livery(team).primary }} />;
 }
 
 export function Select({
@@ -208,12 +267,12 @@ export function Select({
   children: ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-[14px] text-muted-foreground">
+    <label className="flex flex-col gap-1.5 text-[13px] text-muted-foreground">
       {label}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 min-w-[8rem] border border-border bg-card px-3 text-[16px] text-foreground"
+        className="glass h-11 min-w-[8rem] rounded-full px-4 text-[15px] text-foreground [&>option]:bg-[#141416]"
       >
         {children}
       </select>
