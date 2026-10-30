@@ -234,6 +234,7 @@ tf.py
 
 # Trained model artifacts (recreate with `f1podium train`)
 artifacts/
+data/live/.cache/
 
 # Local Claude Code preview config
 .claude/

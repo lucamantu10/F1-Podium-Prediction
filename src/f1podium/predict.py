@@ -19,7 +19,7 @@ from f1podium.models import RaceSimulator
 
 DISPLAY_COLUMNS = [
     "raceId", "year", "round", "race_name", "date", "driverId", "driver_code", "driver_name",
-    "constructorId", "team_name", "grid", "quali_position", "finish_position",
+    "constructorId", "team_name", "grid", "quali_position", "finish_position", "entry_status",
 ]  # fmt: skip
 
 
@@ -47,15 +47,15 @@ class Predictor:
             features = build_features(build_entries(raw), raw)
         return cls(bundle=bundle, features=features, fold_models=fold_models)
 
-    def model_for(self, season: int):
-        """The model that had not seen ``season``, so past races are true out-of-sample.
+    def model_for(self, season: int, completed: bool):
+        """Pick the model for a race and say whether its prediction is out-of-sample.
 
-        Seasons after the training data (upcoming races) use the final model.
+        Completed races use the backtest model that never saw their season. Upcoming
+        races use the final model, trained on everything up to the latest result.
         """
-        if season in self.fold_models:
+        if completed and season in self.fold_models:
             return self.fold_models[season], True
-        trained_through = int(self.bundle["trained_through"][:4])
-        return self.bundle["model"], season > trained_through
+        return self.bundle["model"], not completed
 
     def race_frame(self, season: int, round_: int) -> pd.DataFrame:
         race = self.features[(self.features["year"] == season) & (self.features["round"] == round_)]
@@ -81,7 +81,8 @@ class Predictor:
         """Predict a single race. ``board.attrs['out_of_sample']`` says whether the
         model was trained without that season."""
         board = race[DISPLAY_COLUMNS].copy()
-        model, out_of_sample = self.model_for(int(race["year"].iloc[0]))
+        completed = bool(race["finish_position"].notna().any())
+        model, out_of_sample = self.model_for(int(race["year"].iloc[0]), completed)
         board.attrs["out_of_sample"] = out_of_sample
         if isinstance(model, RaceSimulator):
             positions, win, podium = model.simulate(race)

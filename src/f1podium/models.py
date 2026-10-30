@@ -112,24 +112,32 @@ class RaceSimulator:
         return parts - parts.groupby(frame["raceId"].to_numpy()).transform("mean")
 
     def simulate(self, frame: pd.DataFrame, n_sims: int | None = None, seed: int = RANDOM_STATE):
-        """Return (position_probs[rows, positions], win, podium) for every row of ``frame``."""
+        """Return (position_probs[rows, positions], win, podium) for every row of ``frame``.
+
+        Each race draws from its own generator seeded by ``(seed, raceId)``, so a race
+        gets identical numbers whether it is simulated alone or within a season.
+        """
         n_sims = n_sims or self.n_sims
-        A, mask, (r, s) = self._pack(frame, self._standardize(frame))
-        u = np.where(mask, A @ self.coef_, -np.inf)
-        n_races, n_slots = u.shape
-        counts = np.zeros((n_races, n_slots, n_slots))
-        rng = np.random.default_rng(seed)
-        batch = 500
-        for start in range(0, n_sims, batch):
-            size = min(batch, n_sims - start)
-            noisy = u[None] + rng.gumbel(size=(size, n_races, n_slots))
-            rank = np.argsort(np.argsort(-noisy, axis=2), axis=2)
-            counts += (rank[..., None] == np.arange(n_slots)).sum(0)
-        positions = counts[r, s] / n_sims
+        strengths = self.strengths(frame)
+        race_ids = frame["raceId"].to_numpy()
+        field_sizes = pd.Series(race_ids).value_counts()
+        positions = np.zeros((len(frame), field_sizes.max()))
+        batch = 1000
+        for race_id in field_sizes.index:
+            rows = np.flatnonzero(race_ids == race_id)
+            n = len(rows)
+            rng = np.random.default_rng([seed, int(race_id) % 2**32])
+            counts = np.zeros((n, n))
+            for start in range(0, n_sims, batch):
+                size = min(batch, n_sims - start)
+                noisy = strengths[rows] + rng.gumbel(size=(size, n))
+                finishing_order = np.argsort(-noisy, axis=1)  # [sim, position] -> driver
+                np.add.at(counts, (finishing_order, np.arange(n)), 1)
+            positions[rows, :n] = counts / n_sims
         return positions, positions[:, 0], positions[:, :PODIUM_SIZE].sum(1)
 
     def predict_podium(self, frame: pd.DataFrame) -> np.ndarray:
-        return self.simulate(frame, n_sims=4000)[2]
+        return self.simulate(frame)[2]
 
 
 def logistic_regression() -> PodiumClassifier:

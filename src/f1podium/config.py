@@ -5,6 +5,8 @@ from pathlib import Path
 
 ROOT_DIR = Path(os.environ.get("F1PODIUM_ROOT", Path(__file__).resolve().parents[2]))
 RAW_DATA_DIR = ROOT_DIR / "data" / "raw"
+# Seasons after the historical dump, fetched from Jolpica (see jolpica.py).
+LIVE_DATA_DIR = ROOT_DIR / "data" / "live"
 ARTIFACTS_DIR = ROOT_DIR / "artifacts"
 
 # Qualifying data in the Ergast dump starts in 1994. Earlier seasons are still used to
@@ -13,7 +15,7 @@ TRAIN_START_YEAR = 2000
 
 # Expanding-window backtest: each season is predicted by a model trained only on the
 # seasons before it.
-BACKTEST_SEASONS = list(range(2014, 2025))
+BACKTEST_START_YEAR = 2014
 
 # The race simulator is used for predictions: in the backtest it matches the best
 # classifier on log loss and is the only model that yields win and finishing-position

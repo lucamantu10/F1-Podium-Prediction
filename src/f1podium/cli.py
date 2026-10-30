@@ -1,4 +1,4 @@
-"""Command line entry point: ``f1podium train`` / ``f1podium predict``."""
+"""Command line entry point: ``f1podium update | train | predict | serve``."""
 
 import argparse
 
@@ -25,6 +25,18 @@ def _train(_args) -> None:
     )
 
 
+def _update(args) -> None:
+    from f1podium.jolpica import update
+
+    update(current_season=args.season)
+
+
+def _serve(args) -> None:
+    import uvicorn
+
+    uvicorn.run("f1podium.api.app:app", host=args.host, port=args.port, reload=args.reload)
+
+
 def _predict(args) -> None:
     from f1podium.predict import Predictor
 
@@ -40,6 +52,16 @@ def main(argv=None) -> None:
     sub.add_parser("train", help="Backtest all models and write artifacts.").set_defaults(
         func=_train
     )
+
+    p = sub.add_parser("update", help="Fetch seasons after the historical dump from Jolpica.")
+    p.add_argument("--season", type=int, default=None, help="Last season (default: this year).")
+    p.set_defaults(func=_update)
+
+    p = sub.add_parser("serve", help="Run the HTTP API.")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--reload", action="store_true")
+    p.set_defaults(func=_serve)
 
     p = sub.add_parser("predict", help="Podium probabilities for one race.")
     p.add_argument("season", type=int)

@@ -11,7 +11,7 @@ import pandas as pd
 from f1podium import __version__
 from f1podium.config import (
     ARTIFACTS_DIR,
-    BACKTEST_SEASONS,
+    BACKTEST_START_YEAR,
     PRIMARY_MODEL,
     RANDOM_STATE,
     TRAIN_START_YEAR,
@@ -49,12 +49,14 @@ def raw_podium_probs(model, frame: pd.DataFrame) -> np.ndarray:
     return getattr(model, "predict_podium_raw", model.predict_podium)(frame)
 
 
-def backtest(data: pd.DataFrame, seasons=BACKTEST_SEASONS, log=print):
+def backtest(data: pd.DataFrame, seasons=None, log=print):
     """Predict each season with models trained only on earlier seasons.
 
     Returns the test rows with one raw-probability column per model, and the
     primary model of each fold keyed by season.
     """
+    if seasons is None:
+        seasons = range(BACKTEST_START_YEAR, int(data["year"].max()) + 1)
     folds, fold_models = [], {}
     for season in seasons:
         train, test = data[data["year"] < season], data[data["year"] == season].copy()
@@ -115,7 +117,7 @@ def feature_importance(model_name: str, data: pd.DataFrame) -> list[dict]:
 
     Importance is the increase in log loss when one feature is shuffled.
     """
-    season = max(BACKTEST_SEASONS)
+    season = int(data["year"].max())
     train, test = data[data["year"] < season], data[data["year"] == season]
     model = fit(model_name, train)
     y = test["podium"].to_numpy()
@@ -140,7 +142,7 @@ def feature_importance(model_name: str, data: pd.DataFrame) -> list[dict]:
     return sorted(rows, key=lambda r: r["importance"], reverse=True)
 
 
-def run(artifacts_dir: Path = ARTIFACTS_DIR, log=print) -> dict:
+def run(artifacts_dir: Path = ARTIFACTS_DIR, backtest_seasons=None, log=print) -> dict:
     log("Loading data and building features...")
     raw = load_raw()
     features = build_features(build_entries(raw), raw)
@@ -148,7 +150,7 @@ def run(artifacts_dir: Path = ARTIFACTS_DIR, log=print) -> dict:
     log(f"  {len(data)} training rows, {data['year'].min()}-{data['year'].max()}")
 
     log("Running season backtest...")
-    bt, fold_models = backtest(data, log=log)
+    bt, fold_models = backtest(data, seasons=backtest_seasons, log=log)
     summary = summarize(bt)
     best = min(summary["models"], key=lambda m: summary["models"][m]["overall"]["log_loss"])
     log(f"Primary model: {PRIMARY_MODEL} (lowest backtest log loss: {best})")
